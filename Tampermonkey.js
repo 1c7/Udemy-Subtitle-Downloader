@@ -155,6 +155,9 @@
     }
   }
 
+  // 下载当前这一节视频的字幕
+  // 如何调用: await parse_lecture_data();
+  // 会下载得到一个 .vtt 字幕
   async function parse_lecture_data() {
     var data = await get_lecture_data() // 获得当前这一节的数据
     var lecture_id = data.id; // 获得这一节的 id
@@ -207,6 +210,14 @@
         console.log(`${id}: ${title}`);
       }
     }
+  }
+
+  function main() {
+    // TODO:
+    // 单节字幕下载 [x]
+    // 一整门课字幕下载 []
+    // 下载成 srt []
+    // 页面上有按钮可点击下载 []
   }
 
 })();
