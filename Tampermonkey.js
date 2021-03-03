@@ -1,33 +1,50 @@
 // ==UserScript==
-// @name         Udemy 字幕下载 | Udemy Subtitle Downloader v2
-// @version      2
-// @description  下载 Udemy 的字幕 | Download Udemy Subtitle as .srt file
+// @name:zh-CN      Udemy 字幕下载 v3
+// @name         Udemy Subtitle Downloader v3
+// @version      3
+// @description:zh-CN  下载字幕为 .vtt 文件, 也可以下载一整门课程的字幕（多个文件），也可以下载视频（.mp4）
+// @description  Download Udemy Subtitle as .vtt file
 // @author       Zheng Cheng
 // @match        https://www.udemy.com/course/*
 // @run-at       document-end
 // @grant        unsafeWindow
-// @namespace https://greasyfork.org/users/5711
+// @namespace    https://greasyfork.org/users/5711
 // ==/UserScript==
 
 // 写于2021-3-2
-// 优点
-// 1. 使用门槛比 udemy-dl 更低 （可以在页面上直接点按钮下载，不需要用命令行）
-// 2. 方便，点击既下载
+// [优点]
+// 1. 使用门槛比 udemy-dl 低 （不需要用命令行）
+// 2. 方便，点击就下载
+
+// [备注]
+// 本脚本依赖于 Udemy 的 API，如果哪天 Udemy 进行了改动，那么本程序不能用了是很正常的，修复一下即可。
+// 作者邮箱 guokrfans@gmail.com
+// 测试/开发环境: 
+// macOS Big Sur 11.2.1
+// Chrome 版本 88.0.4324.192（正式版本） (x86_64)
+// Tampermonkey v4.11
+// 不保证其他浏览器可用
+
+// [实现原理]
+// 数据从 API 拿, 发请求时带上一个 token 就行，放到请求头里，这个 token 去 Cookie 里面拿 access_token 就行。
+// 这是基本概念，具体作法参考下方的代码即可。
 
 (function () {
   'use strict';
 
   // 全局变量
-  var div = document.createElement('div');
+  var div = document.createElement('div'); // 所有元素都放这里面
   var button1 = document.createElement('button'); // 下载本集的字幕(1个 .vtt 文件)
   var button2 = document.createElement('button'); // 下载整门课程的字幕 (多个 .vtt 文件)
   var button3 = document.createElement('button'); // 下载本集视频
-  var title_element = null;
+  var title_element = null; // 页面左上角的标题
 
+  // 用法 await sleep(1000) 毫秒
   function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
+  // 在某节点后面插入新节点
   function insertAfter(newNode, referenceNode) {
     referenceNode.parentNode.insertBefore(newNode, referenceNode.nextSibling);
   }
@@ -282,6 +299,7 @@
     var resolution = r.label // 720 or 1080
     var filename = `${safe_filename(lecture_title)}_${resolution}p.mp4` // 构造文件名
     var type = r.type
+
     fetch(url)
       .then(res => res.blob())
       .then(blob => {
@@ -304,9 +322,11 @@
     return num
   }
 
+  // 主入口
   async function main() {
     inject_our_script()
   }
 
+  // 延迟执行，保险一点
   setTimeout(main, 2500);
 })();
