@@ -6,6 +6,7 @@
 // @match        https://www.udemy.com/course/*
 // @run-at       document-end
 // @grant        unsafeWindow
+// @namespace https://greasyfork.org/users/5711
 // ==/UserScript==
 
 // 写于2021-3-2
