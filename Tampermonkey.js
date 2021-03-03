@@ -1,20 +1,12 @@
 // ==UserScript==
-// @name         Udemy 字幕下载 | Udemy Subtitle Downloader v1
-// @version      1
+// @name         Udemy 字幕下载 | Udemy Subtitle Downloader v2
+// @version      2
 // @description  下载 Udemy 的字幕 | Download Udemy Subtitle as .srt file
 // @author       Zheng Cheng
 // @match        https://www.udemy.com/course/*
 // @run-at       document-end
 // @grant        unsafeWindow
 // ==/UserScript==
-
-// 状态：半完成。最核心的获取字幕的方法已经搞定了。
-// 构造出一个合适的  url, 请求头里带上 accss_token 
-// 就可以拿到数据。
-// 现在就剩下往页面上加按钮，
-// 一个按钮点击下载当前视频的字幕(.vtt)
-// 一个按钮下载这一整门课的字幕。（多个.vtt）
-// 可能再加一个按钮，下载当前视频(.mp4)
 
 // 写于2021-3-2
 // 优点
@@ -23,6 +15,13 @@
 
 (function () {
   'use strict';
+
+  // 全局变量
+  var div = document.createElement('div');
+  var button1 = document.createElement('button'); // 下载本集的字幕(1个 .vtt 文件)
+  var button2 = document.createElement('button'); // 下载整门课程的字幕 (多个 .vtt 文件)
+  var button3 = document.createElement('button'); // 下载本集视频
+  var title_element = null;
 
   function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -171,18 +170,16 @@
     var data = await get_lecture_data(course_id, lecture_id) // 获得当前这一节的数据
     var lecture_id = data.id; // 获得这一节的 id
     var lecture_title = await get_lecture_title_by_id(lecture_id) // 根据 id 找到标题
-    var filename = `${safe_filename(lecture_title)}.vtt` // 构造文件名
 
     // 遍历数组
     var array = data.asset.captions
     for (let i = 0; i < array.length; i++) {
       const caption = array[i];
-      // console.log(caption)
       var url = caption.url // vtt 字幕的 URL
-      // var locale_id = caption.locale_id  // locale_id: "en_US"
-      // source: "auto"
-      // video_label: "英语 [自动]"
-      // console.log(url);
+      // var locale_id = caption.locale_id // locale_id: "en_US"
+      // var label = caption.video_label
+      // var filename = `${label}_${safe_filename(lecture_title)}.vtt` // 构造文件名
+      var filename = `${safe_filename(lecture_title)}.vtt` // 构造文件名
       save_vtt(url, filename); // 直接保存
     }
   }
@@ -200,21 +197,9 @@
       })
   }
 
-  function main() {
-    // TODO:
-    // 单节字幕下载 [x]
-    // 一整门课字幕下载 []
-    // 下载成 srt []
-    // 页面上有按钮可点击下载 []
-    inject_our_script()
-  }
-
+  // 把 UI 元素放到页面上
   async function inject_our_script() {
-    var div = document.createElement('div');
-    var button1 = document.createElement('button'); // 下载本集的字幕(1个 .vtt 文件)
-    var button2 = document.createElement('button'); // 下载整门课程的字幕 (多个 .vtt 文件)
-    var button3 = document.createElement('button'); // 下载本集视频
-    var title_element = document.querySelector('a[data-purpose="course-header-title"]')
+    title_element = document.querySelector('a[data-purpose="course-header-title"]')
 
     var button1_css = `
       font-size: 14px;
@@ -242,7 +227,8 @@
     button1.addEventListener('click', download_lecture_subtitle);
 
     button2.setAttribute('style', button2_css);
-    button2.textContent = "下载整门课程的字幕(多个文件)"
+    var num = await get_course_lecture_number()
+    button2.textContent = `下载整门课程的字幕(${num}个文件)`
     button2.addEventListener('click', download_course_subtitle);
 
     button3.setAttribute('style', button2_css);
@@ -257,10 +243,12 @@
     insertAfter(div, title_element);
   }
 
+  // 下载本集字幕
   async function download_lecture_subtitle() {
     await parse_lecture_data();
   }
 
+  // 下载课程全部字幕
   async function download_course_subtitle() {
     var course_id = get_args_course_id();
     var data = await get_course_data()
@@ -275,26 +263,49 @@
     }
   }
 
+  // 下载本集视频
   async function download_lecture_video() {
+    button3.textContent = "下载本集视频 (开始下载)"
     var data = await get_lecture_data() // 获得当前这一节的数据
     var lecture_id = data.id; // 获得这一节的 id
     var lecture_title = await get_lecture_title_by_id(lecture_id) // 根据 id 找到标题
 
-    var highest_resolution = data.asset.media_sources[0]
-    var url = highest_resolution.src // "https://mp4-a.udemycdn.com/2020-12-04_12-48-10-150cfde997c5ba9f05e5e7d86c813db3/1/WebHD_720p.mp4?XquxJGAXiyTc17qxb6iyah_9GXvjHC43UK98UHC3LUkZk7q9yPPll-BJ-5RKz--T9ucjtKOES68m_rZ6vzDZkyEROWwuaoHGFsr3DDuN0AWwk3RpjEo-JNfp98iIaEd_0Vfk0te375rNGtvtCnXibgcZmxDOx4tI5jqFKkl5hVDnwVE7"
-    var resolution = highest_resolution.label // 720 or 1080
-    var filename = `${safe_filename(lecture_title)}_${resolution}.mp4` // 构造文件名
+    var r = data.asset.media_sources[0]
+    // var example = {
+    //   "type": "video/mp4",
+    //   "src": "https://mp4-a.udemycdn.com/2020-12-04_12-48-10-150cfde997c5ba9f05e5e7d86c813db3/1/WebHD_720p.mp4?lKL6M-V-HXBl9MVKyHqfbP9nVBBFDd6lLLXl7USDCVB63OhpUk722Vt6EW1NlopbdZmF9J_9YZCTOhMrhxj26O1uGmgUqUL4F8e79BxKUeKCnxjTKPo3vA6eRzNAINw4k174S8MaD7ND9b37F_TOs4mxC9BLcUyPTxrSMhDLbjQuWl_P",
+    //   "label": "720"
+    // }
 
-    console.log(url);
-    console.log(filename);
-
+    var url = r.src // "https://mp4-a.udemycdn.com/2020-12-04_12-48-10-150cfde997c5ba9f05e5e7d86c813db3/1/WebHD_720p.mp4?XquxJGAXiyTc17qxb6iyah_9GXvjHC43UK98UHC3LUkZk7q9yPPll-BJ-5RKz--T9ucjtKOES68m_rZ6vzDZkyEROWwuaoHGFsr3DDuN0AWwk3RpjEo-JNfp98iIaEd_0Vfk0te375rNGtvtCnXibgcZmxDOx4tI5jqFKkl5hVDnwVE7"
+    var resolution = r.label // 720 or 1080
+    var filename = `${safe_filename(lecture_title)}_${resolution}p.mp4` // 构造文件名
+    var type = r.type
     fetch(url)
       .then(res => res.blob())
       .then(blob => {
-        downloadString(blob, "video/mp4", filename);
+        downloadString(blob, type, filename);
+        button3.textContent = "下载本集视频 (下载完成)"
       });
   }
 
-  setTimeout(main, 2000);
+  // 返回一个整数，代表有多少个视频
+  async function get_course_lecture_number() {
+    var data = await get_course_data()
+    var array = data.results;
+    var num = 0
+    for (let i = 0; i < array.length; i++) {
+      const r = array[i];
+      if (r._class == 'lecture') {
+        num += 1;
+      }
+    }
+    return num
+  }
 
+  async function main() {
+    inject_our_script()
+  }
+
+  setTimeout(main, 2500);
 })();
