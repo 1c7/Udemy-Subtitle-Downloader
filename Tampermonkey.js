@@ -1,10 +1,11 @@
 // ==UserScript==
-// @name         Udemy Subtitle Downloader
-// @version      1.0
-// @description  Download Udemy Subtitle as .srt file
+// @name         Udemy 字幕下载 | Udemy Subtitle Downloader v1
+// @version      1
+// @description  下载 Udemy 的字幕 | Download Udemy Subtitle as .srt file
 // @author       Zheng Cheng
 // @match        https://www.udemy.com/course/*
-// @grant        none
+// @run-at       document-end
+// @grant        unsafeWindow
 // ==/UserScript==
 
 // 状态：半完成。最核心的获取字幕的方法已经搞定了。
@@ -218,6 +219,46 @@
     // 一整门课字幕下载 []
     // 下载成 srt []
     // 页面上有按钮可点击下载 []
+    inject_our_script()
   }
+
+  async function inject_our_script() {
+    var div = document.createElement('div');
+    var button1 = document.createElement('button'); // 下载本集的字幕(1个 .vtt 文件)
+    var button2 = document.createElement('button'); // 下载整门课程的字幕 (多个 .vtt 文件)
+    var title_element = document.querySelector('a[data-purpose="course-header-title"]')
+
+    var button1_css = `
+      font-size: 14px;
+      padding: 1px 12px;
+      border-radius: 4px;
+      border: none;
+      color: black;
+    `;
+
+    var div_css = `
+      margin-bottom: 10px;
+    `;
+
+    button1.setAttribute('style', button1_css);
+    button1.textContent = "下载本集字幕"
+    button1.addEventListener('click', download_lecture_subtitle);
+
+    div.setAttribute('style', div_css);
+    div.appendChild(button1);
+
+    insertAfter(div, title_element);
+  }
+
+  async function download_lecture_subtitle() {
+    await parse_lecture_data();
+  }
+
+  function insertAfter(newNode, referenceNode) {
+    referenceNode.parentNode.insertBefore(newNode, referenceNode.nextSibling);
+  }
+
+  setTimeout(main, 3000);
+
 
 })();
