@@ -24,6 +24,14 @@
 (function () {
   'use strict';
 
+  function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  function insertAfter(newNode, referenceNode) {
+    referenceNode.parentNode.insertBefore(newNode, referenceNode.nextSibling);
+  }
+
   // copy from: https://gist.github.com/danallison/3ec9d5314788b337b682
   // Example downloadString(srt, "text/plain", filename);
   function downloadString(text, fileType, fileName) {
@@ -159,8 +167,8 @@
   // 下载当前这一节视频的字幕
   // 如何调用: await parse_lecture_data();
   // 会下载得到一个 .vtt 字幕
-  async function parse_lecture_data() {
-    var data = await get_lecture_data() // 获得当前这一节的数据
+  async function parse_lecture_data(course_id = null, lecture_id = null) {
+    var data = await get_lecture_data(course_id, lecture_id) // 获得当前这一节的数据
     var lecture_id = data.id; // 获得这一节的 id
     var lecture_title = await get_lecture_title_by_id(lecture_id) // 根据 id 找到标题
     var filename = `${safe_filename(lecture_title)}.vtt` // 构造文件名
@@ -169,12 +177,12 @@
     var array = data.asset.captions
     for (let i = 0; i < array.length; i++) {
       const caption = array[i];
-      console.log(caption)
+      // console.log(caption)
       var url = caption.url // vtt 字幕的 URL
       // var locale_id = caption.locale_id  // locale_id: "en_US"
       // source: "auto"
       // video_label: "英语 [自动]"
-      console.log(url);
+      // console.log(url);
       save_vtt(url, filename); // 直接保存
     }
   }
@@ -192,27 +200,6 @@
       })
   }
 
-  // 下载这一门课的全部字幕
-  function download_course_subtitle() {
-
-  }
-
-  // 处理这一整门课的数据
-  async function parse_course_data() {
-    var data = await get_course_data()
-    // console.log(data);
-    var array = data.results;
-    for (let i = 0; i < array.length; i++) {
-      const result = array[i];
-      if (result._class == 'lecture') {
-        console.log(result);
-        var id = result.id;
-        var title = result.title;
-        console.log(`${id}: ${title}`);
-      }
-    }
-  }
-
   function main() {
     // TODO:
     // 单节字幕下载 [x]
@@ -226,6 +213,7 @@
     var div = document.createElement('div');
     var button1 = document.createElement('button'); // 下载本集的字幕(1个 .vtt 文件)
     var button2 = document.createElement('button'); // 下载整门课程的字幕 (多个 .vtt 文件)
+    var button3 = document.createElement('button'); // 下载本集视频
     var title_element = document.querySelector('a[data-purpose="course-header-title"]')
 
     var button1_css = `
@@ -236,6 +224,15 @@
       color: black;
     `;
 
+    var button2_css = `
+      font-size: 14px;
+      padding: 1px 12px;
+      border-radius: 4px;
+      border: none;
+      color: black;
+      margin-left: 8px;
+    `;
+
     var div_css = `
       margin-bottom: 10px;
     `;
@@ -244,8 +241,18 @@
     button1.textContent = "下载本集字幕"
     button1.addEventListener('click', download_lecture_subtitle);
 
+    button2.setAttribute('style', button2_css);
+    button2.textContent = "下载整门课程的字幕(多个文件)"
+    button2.addEventListener('click', download_course_subtitle);
+
+    button3.setAttribute('style', button2_css);
+    button3.textContent = "下载本集视频"
+    button3.addEventListener('click', download_lecture_video);
+
     div.setAttribute('style', div_css);
     div.appendChild(button1);
+    div.appendChild(button2);
+    div.appendChild(button3);
 
     insertAfter(div, title_element);
   }
@@ -254,11 +261,40 @@
     await parse_lecture_data();
   }
 
-  function insertAfter(newNode, referenceNode) {
-    referenceNode.parentNode.insertBefore(newNode, referenceNode.nextSibling);
+  async function download_course_subtitle() {
+    var course_id = get_args_course_id();
+    var data = await get_course_data()
+    var array = data.results;
+    for (let i = 0; i < array.length; i++) {
+      const result = array[i];
+      if (result._class == 'lecture') {
+        var lecture_id = result.id;
+        await parse_lecture_data(course_id, lecture_id)
+        await sleep(800);
+      }
+    }
   }
 
-  setTimeout(main, 3000);
+  async function download_lecture_video() {
+    var data = await get_lecture_data() // 获得当前这一节的数据
+    var lecture_id = data.id; // 获得这一节的 id
+    var lecture_title = await get_lecture_title_by_id(lecture_id) // 根据 id 找到标题
 
+    var highest_resolution = data.asset.media_sources[0]
+    var url = highest_resolution.src // "https://mp4-a.udemycdn.com/2020-12-04_12-48-10-150cfde997c5ba9f05e5e7d86c813db3/1/WebHD_720p.mp4?XquxJGAXiyTc17qxb6iyah_9GXvjHC43UK98UHC3LUkZk7q9yPPll-BJ-5RKz--T9ucjtKOES68m_rZ6vzDZkyEROWwuaoHGFsr3DDuN0AWwk3RpjEo-JNfp98iIaEd_0Vfk0te375rNGtvtCnXibgcZmxDOx4tI5jqFKkl5hVDnwVE7"
+    var resolution = highest_resolution.label // 720 or 1080
+    var filename = `${safe_filename(lecture_title)}_${resolution}.mp4` // 构造文件名
+
+    console.log(url);
+    console.log(filename);
+
+    fetch(url)
+      .then(res => res.blob())
+      .then(blob => {
+        downloadString(blob, "video/mp4", filename);
+      });
+  }
+
+  setTimeout(main, 2000);
 
 })();
