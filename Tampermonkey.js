@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name:zh-CN      Udemy 字幕下载 v3
+// @name:zh-CN   Udemy 字幕下载 v3
 // @name         Udemy Subtitle Downloader v3
 // @version      3
 // @description:zh-CN  下载字幕为 .vtt 文件, 也可以下载一整门课程的字幕（多个文件），也可以下载视频（.mp4）
@@ -9,6 +9,8 @@
 // @run-at       document-end
 // @grant        unsafeWindow
 // @namespace    https://greasyfork.org/users/5711
+// @license      MIT
+// @supportURL   guokrfans@gmail.com
 // ==/UserScript==
 
 // 写于2021-3-2
